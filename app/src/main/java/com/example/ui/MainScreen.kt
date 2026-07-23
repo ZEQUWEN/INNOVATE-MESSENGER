@@ -1384,6 +1384,7 @@ fun AccountDrawerContent(viewModel: AppViewModel, onCloseDrawer: () -> Unit, nav
     val accounts by viewModel.accounts.collectAsState()
     val activeAccount = LocalActiveAccount.current
     var isAccountsExpanded by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -1393,71 +1394,92 @@ fun AccountDrawerContent(viewModel: AppViewModel, onCloseDrawer: () -> Unit, nav
                 .padding(16.dp)
                 .padding(top = 24.dp)
         ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    AsyncImage(
-                        model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                            .data(activeAccount?.profilePicUrl ?: "")
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Profile Picture",
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .background(Color.DarkGray),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Icon(
-                        if (isAccountsExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                        contentDescription = "Expand Accounts"
-                    )
+            AnimatedContent(
+                targetState = activeAccount,
+                transitionSpec = {
+                    (fadeIn(animationSpec = tween(400)) + slideInVertically(animationSpec = tween(400)) { height -> height })
+                        .togetherWith(fadeOut(animationSpec = tween(400)) + slideOutVertically(animationSpec = tween(400)) { height -> -height })
+                },
+                label = "account_header_transition"
+            ) { account ->
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        AsyncImage(
+                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                .data(account?.profilePicUrl ?: "")
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(Color.DarkGray),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(account?.displayName ?: "", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(account?.username ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(activeAccount?.displayName ?: "", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(activeAccount?.username ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Box(modifier = Modifier.align(Alignment.TopEnd).padding(top = 20.dp)) {
+                Icon(
+                    if (isAccountsExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = "Expand Accounts"
+                )
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
 
         LazyColumn(modifier = Modifier.weight(1f)) {
-            if (isAccountsExpanded) {
-                items(accounts) { account ->
-                    NavigationDrawerItem(
-                        label = { 
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                AsyncImage(
-                                    model = account.profilePicUrl,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp).clip(CircleShape).background(Color.Gray),
-                                    contentScale = ContentScale.Crop
-                                )
-                                Spacer(Modifier.width(12.dp))
-                                Text(account.displayName, fontWeight = if(account.isActive) FontWeight.Bold else FontWeight.Normal)
-                            }
-                        },
-                        selected = account.isActive,
-                        onClick = {
-                            viewModel.switchAccount(account.id)
-                            onCloseDrawer()
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                    )
-                }
-                if (accounts.size < 5) {
-                    item {
-                        NavigationDrawerItem(
-                            icon = { Icon(Icons.Filled.Add, "Add Account") },
-                            label = { Text("Add Account") },
-                            selected = false,
-                            onClick = { 
-                                viewModel.startAddAccount()
-                                onCloseDrawer() 
-                            }
-                        )
+            item {
+                AnimatedVisibility(
+                    visible = isAccountsExpanded,
+                    enter = expandVertically(animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)),
+                    exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(animationSpec = tween(300))
+                ) {
+                    Column {
+                        accounts.forEach { account ->
+                            NavigationDrawerItem(
+                                label = { 
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        AsyncImage(
+                                            model = account.profilePicUrl,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(32.dp).clip(CircleShape).background(Color.Gray),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                        Text(account.displayName, fontWeight = if(account.isActive) FontWeight.Bold else FontWeight.Normal)
+                                    }
+                                },
+                                selected = account.isActive,
+                                onClick = {
+                                    viewModel.switchAccount(account.id)
+                                    isAccountsExpanded = false
+                                    scope.launch {
+                                        kotlinx.coroutines.delay(400)
+                                        onCloseDrawer()
+                                    }
+                                },
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                            )
+                        }
+                        if (accounts.size < 5) {
+                            NavigationDrawerItem(
+                                icon = { Icon(Icons.Filled.Add, "Add Account") },
+                                label = { Text("Add Account") },
+                                selected = false,
+                                onClick = { 
+                                    viewModel.startAddAccount()
+                                    onCloseDrawer() 
+                                }
+                            )
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                     }
                 }
-                item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)) }
             }
 
             item {

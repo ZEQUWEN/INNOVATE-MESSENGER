@@ -93,6 +93,29 @@ fun SettingsSimpleItem(title: String, value: String, onClick: () -> Unit) {
 @Composable
 fun SettingsMenuScreen(viewModel: AppViewModel, navController: NavController) {
     val activeAccount = LocalActiveAccount.current ?: return
+    var showLogoutConfirmDialog by remember { mutableStateOf(false) }
+
+    if (showLogoutConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirmDialog = false },
+            title = { Text("Log Out") },
+            text = { Text("Are you sure you want to log out from this account?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLogoutConfirmDialog = false
+                    viewModel.logout()
+                    navController.popBackStack()
+                }) {
+                    Text("Log Out", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutConfirmDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
     
     Scaffold(
         topBar = {
@@ -101,11 +124,6 @@ fun SettingsMenuScreen(viewModel: AppViewModel, navController: NavController) {
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* More options */ }) {
-                        Icon(Icons.Filled.MoreVert, "More")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -208,8 +226,7 @@ fun SettingsMenuScreen(viewModel: AppViewModel, navController: NavController) {
                 title = "Log Out",
                 subtitle = null,
                 onClick = { 
-                    viewModel.logout()
-                    navController.popBackStack()
+                    showLogoutConfirmDialog = true
                 }
             )
             Spacer(Modifier.height(32.dp))
