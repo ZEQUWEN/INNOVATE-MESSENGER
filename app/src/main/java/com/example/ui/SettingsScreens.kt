@@ -1,4 +1,5 @@
 package com.example.ui
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -530,7 +531,15 @@ fun SettingsSecurityScreen(viewModel: AppViewModel, navController: NavController
         Column(modifier = Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())) {
             Text("Security", modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
             
-            SettingsListItem(icon = { Icon(Icons.Filled.Lock, null) }, title = "Passcode Lock", subtitle = "Off", onClick = { navController.navigate("settings/passcode") })
+            val isPasscodeEnabled = activeAccount.encryptedPasscode != null
+            Row(modifier = Modifier.fillMaxWidth().clickable { navController.navigate("settings/passcode") }.padding(vertical = 12.dp, horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.padding(end = 16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Passcode Lock", style = MaterialTheme.typography.bodyLarge)
+                    Text(if (isPasscodeEnabled) "On" else "Off", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = isPasscodeEnabled, onCheckedChange = { navController.navigate("settings/passcode") })
+            }
             SettingsListItem(icon = { Icon(Icons.Filled.VpnKey, null) }, title = "Two-Step Verification", subtitle = "Off", onClick = { navController.navigate("settings/two_step") })
             SettingsListItem(icon = { Icon(Icons.Filled.Email, null) }, title = "Login Email", subtitle = "None", onClick = { navController.navigate("settings/email") })
             
@@ -852,29 +861,208 @@ fun SettingsThemesScreen(viewModel: AppViewModel, navController: androidx.naviga
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PasscodeLockScreen(navController: NavController) {
-    var passcode by remember { mutableStateOf("") }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Passcode Lock") },
-                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
-            )
+fun PasscodeLockScreen(viewModel: AppViewModel, navController: NavController) {
+    val activeAccount = LocalActiveAccount.current ?: return
+    var input by remember { mutableStateOf("") }
+    var step by remember { mutableStateOf(if (activeAccount.encryptedPasscode != null) "enter_current" else "enter_new") }
+    var tempPasscode by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
+
+    fun handleKeyPress(key: String) {
+        if (input.length < 4) {
+            input += key
+            showError = false
+            if (input.length == 4) {
+                when (step) {
+                    "enter_current" -> {
+                        val currentPasscode = activeAccount.encryptedPasscode?.let { com.example.data.CryptoManager.decrypt(it) }
+                        if (input == currentPasscode) {
+                            step = "settings"
+                            input = ""
+                        } else {
+                            showError = true
+                            input = ""
+                        }
+                    }
+                    "enter_new" -> {
+                        tempPasscode = input
+                        step = "repeat_new"
+                        input = ""
+                    }
+                    "repeat_new" -> {
+                        if (input == tempPasscode) {
+                            viewModel.updatePasscode(activeAccount.id, input)
+                            step = "settings"
+                            input = ""
+                        } else {
+                            showError = true
+                            input = ""
+                            step = "enter_new"
+                        }
+                    }
+                }
+            }
         }
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(32.dp))
-            Icon(Icons.Filled.Lock, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(16.dp))
-            Text("Enter a passcode", style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(32.dp))
-            OutlinedTextField(
-                value = passcode,
-                onValueChange = { passcode = it },
-                label = { Text("Passcode") },
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.padding(horizontal = 32.dp).fillMaxWidth()
-            )
+    }
+
+    if (step == "settings") {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Passcode Lock") },
+                    navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
+                )
+            }
+        ) { padding ->
+            Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+                SettingsSimpleItem("Change Passcode", "") {
+                    step = "enter_new"
+                    input = ""
+                }
+                SettingsSimpleItem("Auto-lock", "in 1 hour") { /* TODO */ }
+                
+                Text("Show App Content in Task Switcher", modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                var showPreview by remember { mutableStateOf(false) }
+                Row(modifier = Modifier.fillMaxWidth().clickable { showPreview = !showPreview }.padding(vertical = 12.dp, horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Show Content", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Switch(checked = showPreview, onCheckedChange = { showPreview = it })
+                }
+                
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = "Turn Passcode Off",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        viewModel.updatePasscode(activeAccount.id, null)
+                        navController.popBackStack()
+                    }.padding(16.dp),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+    } else {
+        Scaffold { padding ->
+            Column(modifier = Modifier.padding(padding).fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                    IconButton(onClick = { navController.popBackStack() }, modifier = Modifier.align(Alignment.CenterStart)) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                }
+                
+                Spacer(Modifier.height(32.dp))
+                Icon(
+                    Icons.Filled.Lock, 
+                    contentDescription = null, 
+                    modifier = Modifier.size(80.dp), 
+                    tint = if (showError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(24.dp))
+                
+                Text(
+                    text = when(step) {
+                        "enter_current" -> "Enter Passcode"
+                        "enter_new" -> "Enter new Passcode"
+                        "repeat_new" -> "Re-enter your Passcode"
+                        else -> ""
+                    },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = when(step) {
+                        "enter_current" -> "Enter your current passcode to change settings."
+                        "enter_new" -> "Enter 4 digits you will use to unlock the app."
+                        "repeat_new" -> "If you forget your passcode, you will need to reinstall the app. Secret chats will be lost."
+                        else -> ""
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                )
+                
+                Spacer(Modifier.height(48.dp))
+                
+                // Passcode dots
+                Row(horizontalArrangement = Arrangement.Center) {
+                    for (i in 0 until 4) {
+                        val isFilled = i < input.length
+                        Box(
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .shadow(
+                                    elevation = if (isFilled || showError) 16.dp else 0.dp,
+                                    shape = CircleShape,
+                                    spotColor = if (showError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                    ambientColor = if (showError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                )
+                                .background(
+                                    if (showError) MaterialTheme.colorScheme.error
+                                    else if (isFilled) MaterialTheme.colorScheme.primary
+                                    else Color.Transparent
+                                )
+                                .border(
+                                    1.dp, 
+                                    if (showError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, 
+                                    CircleShape
+                                )
+                        )
+                    }
+                }
+                
+                Spacer(Modifier.height(16.dp))
+                if (step == "enter_current") {
+                    TextButton(onClick = { /* Forgot passcode flow */ }) {
+                        Text("Forgot passcode?", color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                
+                Spacer(Modifier.weight(1f))
+                
+                // Keypad
+                Column(modifier = Modifier.padding(bottom = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    val keys = listOf(
+                        listOf("1", "2", "3"),
+                        listOf("4", "5", "6"),
+                        listOf("7", "8", "9"),
+                        listOf("", "0", "back")
+                    )
+                    
+                    for (row in keys) {
+                        Row(modifier = Modifier.padding(vertical = 8.dp)) {
+                            for (key in row) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = 16.dp)
+                                        .size(72.dp)
+                                        .clip(CircleShape)
+                                        .background(if (key.isNotEmpty() && key != "back") MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
+                                        .clickable(enabled = key.isNotEmpty()) {
+                                            if (key == "back") {
+                                                if (input.isNotEmpty()) {
+                                                    input = input.dropLast(1)
+                                                    showError = false
+                                                }
+                                            } else {
+                                                handleKeyPress(key)
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (key == "back") {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Backspace")
+                                    } else if (key.isNotEmpty()) {
+                                        Text(key, style = MaterialTheme.typography.headlineMedium)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

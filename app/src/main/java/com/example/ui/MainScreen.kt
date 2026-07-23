@@ -325,7 +325,7 @@ fun MainAppNavigation(viewModel: AppViewModel) {
                             composable("settings/themes") { SettingsThemesScreen(viewModel, mainNavController) }
                             composable("settings/security") { SettingsSecurityScreen(viewModel, mainNavController) }
                             composable("settings/two_step") { TwoStepVerificationScreen(mainNavController) }
-                            composable("settings/passcode") { PasscodeLockScreen(mainNavController) }
+                            composable("settings/passcode") { PasscodeLockScreen(viewModel, mainNavController) }
                             composable("settings/email") { LoginEmailScreen(viewModel, mainNavController) }
                             composable("settings/verify_email") { VerifyEmailScreen(viewModel, mainNavController) }
                             composable("settings/devices") { DevicesScreen(mainNavController) }

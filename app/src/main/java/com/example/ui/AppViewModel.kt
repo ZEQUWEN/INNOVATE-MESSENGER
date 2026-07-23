@@ -37,7 +37,8 @@ data class UserAccount(
     val isActive: Boolean = false,
     val bio: String = "",
     val sessionToken: String? = null,
-    val customStatus: String = ""
+    val customStatus: String = "",
+    val encryptedPasscode: String? = null
 )
 
 @Entity(tableName = "contacts")
@@ -599,4 +600,13 @@ class AppViewModel(private val repository: MessengerRepository) : ViewModel() {
     fun checkAutoTheme() {}
     fun addBot(chat: Chat) { viewModelScope.launch { repository.insertChat(chat) } }
 
+    fun updatePasscode(accountId: String, newPasscode: String?) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val account = accounts.value.find { it.id == accountId }
+            if (account != null) {
+                val encrypted = newPasscode?.let { com.example.data.CryptoManager.encrypt(it) }
+                repository.insertAccount(account.copy(encryptedPasscode = encrypted, is2FAEnabled = if (encrypted != null) false else account.is2FAEnabled))
+            }
+        }
+    }
 }
