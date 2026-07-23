@@ -144,12 +144,10 @@ fun MainAppNavigation(viewModel: AppViewModel) {
     CompositionLocalProvider(LocalActiveAccount provides activeAccount) {
         Box(modifier = Modifier.fillMaxSize()) {
             // Render Active Theme Canvas in background
-            AnimatedContent(
+            androidx.compose.animation.Crossfade(
                 targetState = theme,
-                label = "ThemeTransition",
-                transitionSpec = {
-                    fadeIn(tween(500)) togetherWith fadeOut(tween(500))
-                }
+                animationSpec = tween(1000),
+                label = "ThemeTransition"
             ) { targetTheme ->
                 when (targetTheme) {
                     AppTheme.NEON_SNOWFLAKES -> NeonSnowflakesBackground(isBatterySaver = isBatterySaver, opacity = opacity)

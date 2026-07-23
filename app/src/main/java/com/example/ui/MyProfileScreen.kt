@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -97,6 +98,7 @@ fun MyProfileScreen(viewModel: AppViewModel, navController: NavController) {
     var showEditDateDialog by remember { mutableStateOf(false) }
     var showChangeNumberDialog by remember { mutableStateOf(false) }
     var showAvatarViewer by remember { mutableStateOf(false) }
+    var showQrDialog by remember { mutableStateOf(false) }
     val avatars = remember(activeAccount.id) {
         listOf(
             activeAccount.profilePicUrl.takeIf { it.isNotEmpty() } ?: "https://picsum.photos/seed/${activeAccount.id}/800",
@@ -391,6 +393,12 @@ fun MyProfileScreen(viewModel: AppViewModel, navController: NavController) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showQrDialog = true }) {
+                        Icon(Icons.Filled.QrCode, contentDescription = "QR Code")
+                    }
+                    IconButton(onClick = { /* Scan */ }) {
+                        Icon(Icons.Filled.QrCodeScanner, contentDescription = "Scan QR")
+                    }
                     IconButton(onClick = { /* more */ }) {
                         Icon(Icons.Filled.MoreVert, contentDescription = "More")
                     }
@@ -401,20 +409,111 @@ fun MyProfileScreen(viewModel: AppViewModel, navController: NavController) {
             )
         }
         
-        // Back button always visible if top bar is hidden
+        // Back button and top-right actions always visible if top bar is hidden
         if (!showTopBar) {
-            IconButton(
-                onClick = { navController.popBackStack() },
+            Box(
                 modifier = Modifier
-                    .padding(top = 8.dp, start = 8.dp)
+                    .fillMaxWidth()
                     .statusBarsPadding()
-                    .background(Color.Black.copy(alpha = 0.3f), CircleShape)
             ) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                IconButton(
+                    onClick = { navController.popBackStack() },
+                    modifier = Modifier
+                        .padding(top = 8.dp, start = 8.dp)
+                        .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                        .align(Alignment.TopStart)
+                ) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                }
+                
+                Row(
+                    modifier = Modifier
+                        .padding(top = 8.dp, end = 8.dp)
+                        .align(Alignment.TopEnd)
+                ) {
+                    IconButton(
+                        onClick = { showQrDialog = true },
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                    ) {
+                        Icon(Icons.Filled.QrCode, contentDescription = "QR Code", tint = Color.White)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    IconButton(
+                        onClick = { /* Scan */ },
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                    ) {
+                        Icon(Icons.Filled.QrCodeScanner, contentDescription = "Scan QR", tint = Color.White)
+                    }
+                }
             }
         }
 
         // Dialogs
+        if (showQrDialog) {
+            ModalBottomSheet(
+                onDismissRequest = { showQrDialog = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ) {
+                var qrColor by remember { mutableStateOf(Color.Black) }
+                val qrBitmap = remember(activeAccount.username, qrColor) {
+                    com.example.utils.generateQrCode(
+                        text = "tg://resolve?domain=${activeAccount.username}",
+                        fgColor = android.graphics.Color.argb(
+                            (qrColor.alpha * 255).toInt(),
+                            (qrColor.red * 255).toInt(),
+                            (qrColor.green * 255).toInt(),
+                            (qrColor.blue * 255).toInt()
+                        )
+                    )
+                }
+                
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    qrBitmap?.let { bmp ->
+                        androidx.compose.foundation.Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = "QR Code",
+                            modifier = Modifier
+                                .size(250.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Text("@${activeAccount.username}", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(32.dp))
+                    
+                    Text("Выберите цвет QR-кода", style = MaterialTheme.typography.labelMedium)
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        listOf(Color.Black, Color(0xFF00D4FF), Color(0xFFFF007F), Color(0xFF39FF14), Color(0xFF7F00FF)).forEach { color ->
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .clickable { qrColor = color }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(32.dp))
+                    Button(
+                        onClick = { /* Share QR */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Поделиться")
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+            }
+        }
+        
         if (showChangeNumberDialog) {
             AlertDialog(
                 onDismissRequest = { showChangeNumberDialog = false },
