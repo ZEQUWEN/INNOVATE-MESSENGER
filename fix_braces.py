@@ -1,12 +1,10 @@
-with open("app/src/main/java/com/example/ui/AppViewModel.kt", "r") as f:
+with open('app/src/main/java/com/example/ui/MyProfileScreen.kt', 'r') as f:
     lines = f.readlines()
 
-out = []
-for line in lines:
-    if line.strip() == "}":
-        # Check if previous line was also }
-        if len(out) > 0 and out[-1].strip() == "}":
-            # Possible double brace
-            pass
-    out.append(line)
+new_lines = []
+i = 0
+while i < len(lines):
+    if i == 713: # 0-indexed is 712, but wait, let's look for the exact string
+        pass
+    i += 1
 

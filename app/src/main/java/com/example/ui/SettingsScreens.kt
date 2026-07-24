@@ -706,6 +706,7 @@ fun SettingsColorsScreen(viewModel: AppViewModel, navController: NavController) 
     val currentPrimary by viewModel.customPrimaryColor.collectAsState()
     val isAutoThemeEnabled by viewModel.isAutoThemeEnabled.collectAsState()
     val isDarkThemeEnabled by viewModel.isDarkThemeEnabled.collectAsState()
+    val isQrSnowflakesEnabled by viewModel.isQrSnowflakesEnabled.collectAsState()
     
     Scaffold(
         topBar = {
@@ -743,6 +744,17 @@ fun SettingsColorsScreen(viewModel: AppViewModel, navController: NavController) 
                 Switch(
                     checked = isDarkThemeEnabled,
                     onCheckedChange = { viewModel.setDarkThemeEnabled(it) }
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("QR Code Snowflakes", style = MaterialTheme.typography.bodyLarge)
+                Switch(
+                    checked = isQrSnowflakesEnabled,
+                    onCheckedChange = { viewModel.setQrSnowflakesEnabled(it) }
                 )
             }
             HorizontalDivider()

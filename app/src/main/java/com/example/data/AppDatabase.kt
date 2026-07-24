@@ -215,6 +215,9 @@ class MessengerRepository(
     fun getBatterySaverEnabled(): Boolean = sharedPrefs.getBoolean("battery_saver", false)
     fun saveBatterySaverEnabled(enabled: Boolean) = sharedPrefs.edit().putBoolean("battery_saver", enabled).apply()
 
+    fun getQrSnowflakesEnabled(): Boolean = sharedPrefs.getBoolean("qr_snowflakes", false)
+    fun saveQrSnowflakesEnabled(enabled: Boolean) = sharedPrefs.edit().putBoolean("qr_snowflakes", enabled).apply()
+
     fun getThemeOpacity(): Float = sharedPrefs.getFloat("theme_opacity", 1.0f)
     fun saveThemeOpacity(opacity: Float) = sharedPrefs.edit().putFloat("theme_opacity", opacity).apply()
 

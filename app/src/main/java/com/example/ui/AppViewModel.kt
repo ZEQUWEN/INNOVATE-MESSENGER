@@ -153,6 +153,9 @@ class AppViewModel(private val repository: MessengerRepository) : ViewModel() {
     private val _batterySaverEnabled = MutableStateFlow(repository.getBatterySaverEnabled())
     val batterySaverEnabled: StateFlow<Boolean> = _batterySaverEnabled.asStateFlow()
 
+    private val _isQrSnowflakesEnabled = MutableStateFlow(repository.getQrSnowflakesEnabled())
+    val isQrSnowflakesEnabled: StateFlow<Boolean> = _isQrSnowflakesEnabled.asStateFlow()
+
     private val _themeOpacity = MutableStateFlow(repository.getThemeOpacity())
     val themeOpacity: StateFlow<Float> = _themeOpacity.asStateFlow()
 
@@ -550,6 +553,11 @@ class AppViewModel(private val repository: MessengerRepository) : ViewModel() {
         _batterySaverEnabled.value = enabled
         repository.saveBatterySaverEnabled(enabled)
     }
+    fun setQrSnowflakesEnabled(enabled: Boolean) {
+        _isQrSnowflakesEnabled.value = enabled
+        repository.saveQrSnowflakesEnabled(enabled)
+    }
+
     fun setThemeOpacity(opacity: Float) {
         _themeOpacity.value = opacity
         repository.saveThemeOpacity(opacity)

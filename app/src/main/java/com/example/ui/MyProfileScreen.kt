@@ -57,6 +57,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun MyProfileScreen(viewModel: AppViewModel, navController: NavController) {
     val activeAccount = LocalActiveAccount.current ?: return
+    val isQrSnowflakesEnabled by viewModel.isQrSnowflakesEnabled.collectAsState()
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     
@@ -452,6 +453,60 @@ fun MyProfileScreen(viewModel: AppViewModel, navController: NavController) {
                 onDismissRequest = { showQrDialog = false },
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             ) {
+                Box(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f)) {
+                    // Iridescent Gradient
+                    val infiniteTransition = rememberInfiniteTransition()
+                    val gradientOffset by infiniteTransition.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 1000f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(10000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse
+                        )
+                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFFE0C3FC).copy(alpha = 0.5f),
+                                    Color(0xFF8EC5FC).copy(alpha = 0.5f),
+                                    Color(0xFFE0C3FC).copy(alpha = 0.5f)
+                                ),
+                                start = Offset(gradientOffset, gradientOffset),
+                                end = Offset(gradientOffset + 500f, gradientOffset + 500f)
+                            )
+                        )
+                    )
+                    
+                    if (isQrSnowflakesEnabled) {
+                        val snowflakes = remember { List(30) { com.example.ui.Snowflake() } }
+                        var dt by remember { mutableStateOf(0f) }
+                        var lastTime by remember { mutableStateOf(0L) }
+                        LaunchedEffect(Unit) {
+                            while (true) {
+                                androidx.compose.runtime.withFrameNanos { time ->
+                                    if (lastTime != 0L) {
+                                        dt = (time - lastTime) / 1_000_000_000f
+                                    }
+                                    lastTime = time
+                                }
+                            }
+                        }
+                        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                            val currentDt = dt
+                            snowflakes.forEach { flake ->
+                                flake.update(size.width, size.height, currentDt)
+                                drawCircle(
+                                    color = Color.White.copy(alpha = flake.alpha),
+                                    center = Offset(flake.x, flake.y),
+                                    radius = flake.radius
+                                )
+                            }
+                        }
+                    }
+                    
+                    Column(modifier = Modifier.fillMaxSize()) {
+
                 var selectedThemeIndex by remember { mutableStateOf(0) }
                 val themes = listOf(
                     Triple(Color.White, Color(0xFF1E88E5), Color(0xFFE3F2FD)), // Blue
@@ -654,6 +709,8 @@ fun MyProfileScreen(viewModel: AppViewModel, navController: NavController) {
                         }
                     }
                 }
+            }
+        }
             }
         }
         
